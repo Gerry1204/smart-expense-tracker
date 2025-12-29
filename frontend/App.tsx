@@ -132,7 +132,13 @@ const INITIAL_CATEGORIES = Array.from(
 
 const Button: React.FC<
   React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    variant?: "primary" | "secondary" | "danger" | "ghost";
+    variant?:
+      | "primary"
+      | "secondary"
+      | "danger"
+      | "ghost"
+      | "success"
+      | "warning";
   }
 > = ({ children, variant = "primary", className = "", ...props }) => {
   const baseStyle =
@@ -142,6 +148,10 @@ const Button: React.FC<
       "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none",
     secondary:
       "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600",
+    success:
+      "bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-200 dark:shadow-none",
+    warning:
+      "bg-amber-500 text-white hover:bg-amber-600 shadow-md shadow-amber-200 dark:shadow-none",
     danger:
       "bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400",
     ghost:
@@ -1179,12 +1189,12 @@ export default function App() {
         <div className="flex gap-2">
           <Button
             onClick={handleEditToggle}
-            variant={isEditMode ? "primary" : "secondary"}
+            variant={isEditMode ? "warning" : "secondary"}
           >
             {isEditMode ? <Save size={16} /> : <Edit size={16} />}
             {isEditMode ? t("save") : t("edit")}
           </Button>
-          <Button onClick={exportData} variant="secondary">
+          <Button onClick={exportData} variant="success">
             <Download size={16} /> {t("exportCSV")}
           </Button>
         </div>
