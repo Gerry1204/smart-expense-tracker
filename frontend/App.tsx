@@ -83,8 +83,8 @@ const MOCK_TRANSACTIONS: Transaction[] = [
   },
 ];
 
-// --- Constants ---
-const API_URL = ""; // Use relative path for proxy
+// --- 常數設定 (Constants) ---
+const API_URL = ""; // 使用相對路徑 (透過 Proxy 連線至後端)
 const EXPENSE_COLOR = "#e11d48";
 const INCOME_COLOR = "#059669";
 const COLORS = [
@@ -104,11 +104,10 @@ const COLORS = [
   "#EAB308", // Yellow
   "#A855F7", // Purple
 ];
-const INITIAL_CATEGORIES = [
+const EXPENSE_CATEGORIES = [
   "Food",
   "Transport",
   "Entertainment",
-  "Salary",
   "Bills",
   "Housing",
   "Education",
@@ -116,6 +115,18 @@ const INITIAL_CATEGORIES = [
   "Health",
   "Other",
 ];
+
+const INCOME_CATEGORIES = [
+  "Salary",
+  "Investment",
+  "Interest",
+  "Sponsorship",
+  "Other",
+];
+
+const INITIAL_CATEGORIES = Array.from(
+  new Set([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES])
+);
 
 // --- Components ---
 
@@ -158,6 +169,8 @@ const Card: React.FC<
 );
 
 export default function App() {
+  // --- 狀態管理 (State Management) ---
+  // 1. 語言與翻譯設定
   const [language, setLanguage] = useState("zh");
   const [showLangMenu, setShowLangMenu] = useState(false);
   const t = (key: keyof (typeof TRANSLATIONS)["en"]) => {
@@ -173,6 +186,7 @@ export default function App() {
     );
   };
 
+  // 2. 核心資料狀態 (交易紀錄、年度統計、載入中)
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [yearlyStats, setYearlyStats] = useState<YearlyStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,7 +227,7 @@ export default function App() {
   const ITEMS_PER_PAGE = 5;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Auth State
+  // 3. 使用者認證狀態 (Auth State)
   const [currentUser, setCurrentUser] = useState<string | null>(
     localStorage.getItem("currentUser")
   );
@@ -232,7 +246,7 @@ export default function App() {
     type: "success" | "error";
   } | null>(null);
 
-  // Edit Mode State
+  // 4. 編輯模式狀態 (Edit Mode)
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingTransactions, setEditingTransactions] = useState<{
     [key: number]: Transaction;
@@ -247,10 +261,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    // 監聽視窗大小改變事件
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
+    // Cleanup function: 元件卸載時移除監聽器，防止記憶體洩漏
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, []); // 空陣列表示只在元件掛載 (Mount) 時執行一次
 
   useEffect(() => {
     setCurrentPage(1);
@@ -275,7 +291,9 @@ export default function App() {
   }, [isDarkMode]);
 
   // Fetch Data
+  // --- API 資料讀取 (API Calls) ---
   const fetchTransactions = async () => {
+    // async/await: 非同步語法，讓程式碼看起來像同步執行，方便閱讀與除錯
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/transactions/`, {
@@ -297,6 +315,7 @@ export default function App() {
         )
       );
     } finally {
+      // finally: 無論成功或失敗都會執行的區塊，適合用來關閉 Loading 狀態
       setLoading(false);
     }
   };
@@ -388,6 +407,7 @@ export default function App() {
   }, [filteredTransactions, trendCategory, startDate, endDate]);
 
   // Handlers
+  // --- 事件處理 (Event Handlers) ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -512,6 +532,7 @@ export default function App() {
     }
   };
 
+  // --- 使用者認證邏輯 (Auth Logic) ---
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isRegistering ? "/register" : "/login";
@@ -567,6 +588,7 @@ export default function App() {
   // --- Views ---
 
   // Edit Handlers
+  // --- 編輯模式邏輯 (Edit Logic) ---
   const handleEditToggle = async () => {
     if (isEditMode) {
       // Save changes
@@ -1377,6 +1399,7 @@ export default function App() {
   );
 
   return (
+    // --- 主要畫面渲染 (Main Render) ---
     <div className="min-h-screen flex flex-col relative font-sans selection:bg-blue-100 dark:selection:bg-blue-900">
       {/* Navbar */}
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 px-4 py-3 flex justify-between items-center">
@@ -1644,11 +1667,26 @@ export default function App() {
                       }}
                       className="w-full p-2 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white"
                     >
-                      {categories.map((c) => (
+                      {(type === "expense"
+                        ? EXPENSE_CATEGORIES
+                        : INCOME_CATEGORIES
+                      ).map((c) => (
                         <option key={c} value={c}>
                           {tCategory(c)}
                         </option>
                       ))}
+                      {/* Show custom categories if any exist in the global list but not in defaults */}
+                      {categories
+                        .filter(
+                          (c) =>
+                            !EXPENSE_CATEGORIES.includes(c) &&
+                            !INCOME_CATEGORIES.includes(c)
+                        )
+                        .map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
                       <option
                         value="___custom___"
                         className="font-bold text-blue-600"
