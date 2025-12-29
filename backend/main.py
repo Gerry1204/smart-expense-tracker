@@ -137,6 +137,27 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
+class TransactionUpdate(BaseModel):
+    date: Optional[str] = None
+    amount: Optional[float] = None
+    type: Optional[str] = None
+    category: Optional[str] = None
+    note: Optional[str] = None
+
+@app.put("/transactions/{transaction_id}", response_model=Transaction)
+def update_transaction(transaction_id: int, transaction: TransactionUpdate, db: Session = Depends(get_db)):
+    db_transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if db_transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    update_data = transaction.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_transaction, key, value)
+    
+    db.commit()
+    db.refresh(db_transaction)
+    return db_transaction
+
 @app.get("/stats/year/{year}", response_model=YearlyStats)
 def get_yearly_stats(year: str, db: Session = Depends(get_db)):
     year_filter = models.Transaction.date.like(f"{year}-%")
