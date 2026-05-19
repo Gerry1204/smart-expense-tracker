@@ -1,110 +1,166 @@
-# Flowing Gold (流金) 💰
+# Flowing Gold (流金) 💰 — 隱私優先的個人智慧記帳與財務分析系統
 
-**Flowing Gold** is a beautiful, modern, and privacy-focused personal expense tracker application. It empowers you to manage your finances locally with a stunning React frontend and a robust Python FastAPI backend, now featuring **secure multi-user authentication**.
+**Flowing Gold** 是一款兼具極致美學、現代化設計與隱私安全性的個人財務記帳與分析應用程式。本專案專為關心數據隱私的您打造，所有的記帳資料皆安全儲存在本地。系統搭載了精美的 React 前端介面與高強度的 Python FastAPI 後端，並配備 **多使用者安全身分驗證與資料隔離機制**，讓您的私有雲記帳既安全又極致便利。
 
-![Project Banner](./電腦版畫面.png)
-
-## ✨ Key Features
-
-*   **🔐 Secure Authentication**: Integrated Registration and Login system to keep your data protected.
-*   **👥 Multi-User Isolation**: Every user gets their own dedicated SQLite database (e.g., `username.db`), ensuring complete data privacy and isolation.
-*   **🌍 Multi-language Support**: Fully localized in **English**, **Traditional Chinese (繁體中文)**, **Japanese (日本語)**, and **Korean (한국어)**.
-*   **📊 Interactive Dashboard**: Visualize your finances with dynamic **Pie Charts** (Expenses by Category) and **Area Charts** (Consumption Trend). Includes data-aware placeholders and smooth error handling.
-*   **📱 Responsive & Mobile-First**: A seamless experience across devices. The header automatically optimizes for mobile (icon-only modes), ensuring vital features are always reachable.
-*   **🌗 Dark Mode**: Built-in toggle for Light and Dark themes.
-*   **📅 Advanced Filtering**: Analyze spending by custom date ranges or quick presets.
-*   **📝 Transaction Management**:
-    *   Easily add income and expenses with a built-in calculator (e.g., input `50+20`).
-    *   Paginated transaction list with custom rows per page.
-    *   Delete records with safety confirmation (Long-press delete on mobile).
-*   **📈 Yearly Statistics**: Deep insights into your highest spending days, most frequent transaction days, and top categories.
-*   **� Modern Notifications**: Custom-built **Toast Notification** system replacing browser alerts for a premium user experience.
-*   **📂 CSV Export**: Export your data anytime for external analysis.
-
-## 🛠️ Tech Stack
-
-*   **Frontend**:
-    *   [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-    *   [Vite](https://vitejs.dev/) - Blazing fast build tool
-    *   [Tailwind CSS](https://tailwindcss.com/) - Utility-first styling
-    *   [Recharts](https://recharts.org/) - Data visualization
-    *   [Lucide React](https://lucide.dev/) - Premium iconography
-*   **Backend**:
-    *   [Python](https://www.python.org/) (3.8+)
-    *   [FastAPI](https://fastapi.tiangolo.com/) - Modern, high-performance web framework
-    *   [SQLAlchemy](https://www.sqlalchemy.org/) - SQL Toolkit and ORM
-    *   [SQLite](https://www.sqlite.org/) - Lightweight, user-specific disk-based databases
+![電腦版畫面](./電腦版畫面.png)
 
 ---
 
-## 🚀 Getting Started
+## ✨ 核心特色與亮點
 
-Follow these steps to get a local copy up and running.
+*   **🔐 整合式安全身分驗證**：支援新使用者註冊與登入。密碼採用業界標準的 `bcrypt` 進行單向高強度雜湊加密（透過 passlib 套件），確保您的登入憑證絕對安全。
+*   **👥 獨立 SQLite 資料庫隔離（隱私第一）**：
+    *   全域 `users.db` 僅用來安全儲存註冊的使用者清單與加密密碼。
+    *   登入成功後，後端會自動為每位使用者動態建立專屬的獨立 SQLite 資料庫檔案（例如 `username.db`）。這確保了不同使用者之間的交易數據完全隔離、獨立且百分之百私密。
+    *   這使得資料備份和遷移變得無比輕鬆，您只需複製您的個人資料庫檔案即可完成搬移！
+*   **🌍 完整四國語言支援**：系統完全本地化，內建可隨時自由切換的 **繁體中文 (Traditional Chinese)**、**英文 (English)**、**日文 (日本語)**、以及 **韓文 (한국어)**。
+*   **📊 華麗互動式財務儀表板**：整合強大的 Recharts 視覺化圖表，為您呈現：
+    *   **類別支出佔比**（流暢的圓餅圖 Pie Chart）。
+    *   **消費趨勢變化**（精緻的面積漸層圖 Area Chart）。
+    *   具備友善的無資料提示（Placeholders）與優雅的錯誤重試機制。
+*   **📱 行動優先與極致響應式設計**：
+    *   在手機上，導覽列與使用者資訊會自動收折為清爽的微縮圖示（Icon-only）模式，釋放寶貴的螢幕空間。
+    *   專為小螢幕優化，支援刪除交易時的防誤觸確認，並提供貼心的行動操作手感。
+*   **🌗 雙色主題 (深色/淺色) 一鍵切換**：精心調校的深色模式（Dark Mode）與淺色模式，搭配磨砂玻璃擬態（Glassmorphism）卡片視覺，展現奢華的數位美感。
+*   **📅 進階時間段篩選**：支援快速時間預設（近一星期、前一星期、近一個月、近三個月、最近半年、最近一年、全部記錄）或點選自訂任意日期區間，輕鬆洞察特定週期的財務狀況。
+*   **📝 智慧記帳與交易管理**：
+    *   **金額輸入框支援數學運算式**：可直接輸入計算公式（例如 `50+20*3`），點擊儲存或按下 Enter 時，前端會自動求值並填入正確金額，免去來回切換計算機的繁瑣步驟！
+    *   完善的分頁功能，可自由選擇每頁顯示的交易筆數。
+    *   提供美觀的二次確認安全刪除交易視窗。
+*   **📈 全方位年度財務統計**：深度剖析當前年份的消費習慣，自動運算出「單日最高支出」、「最多交易日」以及「最高消費分類」，幫您找出財務漏洞。
+*   **🔔 訂製 Toast 提示通知**：捨棄傳統瀏覽器生硬且中斷體驗的 alert 彈窗，使用完全自訂的 Toast 通知元件，提供順暢且優雅的狀態微動畫回饋。
+*   **📂 一鍵匯出 CSV**：隨時可以將目前的財務交易清單下載為標準 CSV 格式檔案，方便使用 Excel、Numbers 或 Python 進行更深度的報表分析。
 
-### Prerequisites
+---
 
-*   Node.js & npm
-*   Python 3.8+
+## 🛠️ 技術棧 (Tech Stack)
 
-### Installation
+### 前端 (Frontend)
+*   [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) — 提供強健、模組化且易於維護的應用程式架構
+*   [Vite](https://vitejs.dev/) — 極速的前端開發與建構工具
+*   [Tailwind CSS](https://tailwindcss.com/) — 實用優先的現代化樣式框架，輕鬆實現流暢的深色模式切換
+*   [Recharts](https://recharts.org/) — 高效能且支援動態響應的 React 圖表庫
+*   [Lucide React](https://lucide.dev/) — 現代、精緻且多樣化的向量圖示庫
 
-1.  **Clone the repository**
+### 後端 (Backend)
+*   [Python](https://www.python.org/) (建議 3.8 或以上版本)
+*   [FastAPI](https://fastapi.tiangolo.com/) — 高效能、自動生成互動式 Swagger API 文件的現代 Python 網頁框架
+*   [SQLAlchemy](https://www.sqlalchemy.org/) — 強大的 SQL 工具箱與關係物件對映器 (ORM)
+*   [SQLite](https://www.sqlite.org/) — 零設定、極速、基於單一檔案的本地輕量化資料庫
+*   [passlib + bcrypt](https://passlib.readthedocs.io/) — 安全、防破解的密碼雜湊算法
+
+### 工具與整合服務
+*   [Express](https://expressjs.com/) — 用於生產環境一鍵部署的前後端統合代理伺服器
+*   `http-proxy-middleware` — 用於 Express 端精準轉發 API 請求至 FastAPI 後端
+*   `localtunnel` — 用於一鍵穿透內網，為本地服務建立臨時的安全公網 HTTPS 連結
+*   `qrcode-terminal` — 在命令列中直接繪製 QR Code，方便行動裝置即時掃描測試
+*   `concurrently` — 同步運行多個命令列腳本，以單一視窗輕鬆管理前後端服務
+
+---
+
+## 🚀 快速開始
+
+### 📋 系統前置需求
+1. **Node.js**（推薦 LTS 版本，包含 npm）
+2. **Python 3.8+**（已配置系統環境變數）
+
+### 📥 安裝步驟
+
+1.  **複製本專案倉庫至您的本機電腦**
     ```bash
     git clone https://github.com/yourusername/flowing-gold.git
     cd flowing-gold
     ```
 
-2.  **Backend Setup**
-    Navigate to the project root and install Python dependencies:
+2.  **安裝後端 Python 套件與依賴**
+    建議在專案根目錄下直接執行：
     ```bash
     pip install -r backend/requirements.txt
     ```
 
-3.  **Frontend Setup**
-    Install Node.js dependencies:
+3.  **安裝根目錄與前端的 Node.js 模組**
     ```bash
     npm install
     ```
 
-### 🗄️ Database Logic
+---
 
-The app manages databases dynamically:
-*   **`expenses.db`**: Stores the global user registry (usernames and passwords).
-*   **`{username}.db`**: Once logged in, a private database is automatically created for each user to store their transactions.
+## ▶️ 運行應用程式 (提供三種便捷模式)
 
-### ▶️ Running the Application
+本專案經過精心設計，提供以下三種不同的運行模式，滿足開發、本機使用以及跨裝置測試的需要：
 
-You need to run both the backend and frontend servers.
+### 💡 模式一：雙伺服器並行開發模式 (手動啟動)
+適合開發者修改前後端代碼時使用。您需要打開兩個終端機視窗：
 
-**1. Start the Backend Server**
-Open a terminal and run:
-```bash
-# Windows
-python -m uvicorn backend.main:app --reload
+*   **步驟一：啟動 FastAPI 後端伺服器**
+    ```bash
+    # Windows 系統
+    python -m uvicorn backend.main:app --reload
+    
+    # macOS / Linux 系統
+    python3 -m uvicorn backend.main:app --reload
+    ```
+    *FastAPI API 服務預設將運行在 `http://127.0.0.1:8000`。*
 
-# Mac/Linux
-python3 -m uvicorn backend.main:app --reload
-```
-*The backend API will be available at `http://127.0.0.1:8000`*
-
-**2. Start the Frontend Application**
-Open a second terminal and run:
-```bash
-npm run dev
-```
-*Open the link shown (typically `http://localhost:3000`) in your browser to start tracking!*
+*   **步驟二：啟動 React 前端開發伺服器**
+    打開另一個終端機，執行：
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+    *此時會啟動 Vite 開發伺服器。請使用瀏覽器開啟終端機中顯示的網址（通常為 `http://localhost:3000`），即可立刻開始記帳！*
 
 ---
 
-## 💡 Usage Tips
+### ⚡ 模式二：本機一鍵啟動（自動掃描區域網路 IP + 自動開瀏覽器）
+針對 Windows 用戶，我們內建了極其便利的統合啟動腳本 **[run.txt](file:///d:/code/smart-expense-tracker/run.txt)**。
 
-*   **Multi-User**: Register a new account to see how the app creates a fresh, empty database just for you.
-*   **Calculator Input**: In the amount field, you can type expressions like `120*2` or `50+30-10`.
-*   **Mobile Experience**: On mobile devices, the login/user section collapses into a clean icon-only view. Long-press any transaction to trigger the delete prompt.
+當您雙擊或在終端機運行 `run.txt`（或將其重新命名為 `run.bat` 後運行）時，系統會自動：
+1. **掃描本機所有實體網路介面**：排除虛擬機與回環地址，精確找出您的本機區域網路 IP。
+2. **列出區域網路存取網址**：方便您拿起身邊的手機，連上同一個 Wi-Fi 後直接輸入網址進行連線。
+3. **並行啟動服務**：使用 `concurrently` 同時在一個視窗中運行 Python 後端與 React 前端，並用不同顏色高亮標記兩者的日誌。
+4. **自動開啟瀏覽器**：延遲 5 秒後，自動為您在預設瀏覽器中開啟 `http://localhost:3000`，省去手動輸入的麻煩。
+5. **一鍵安全關閉**：按下 `Ctrl+C` 即可同步且安全地關閉前後端伺服器，不留殘餘進程。
 
-## 📄 License
+---
 
-Distributed under the MIT License. See `LICENSE` for more information.
+### 🌐 模式三：公網外網存取與行動端 QR Code 測試（一鍵上雲）
+想要出門在外也能隨手記錄，或是想把記帳本展示給遠處的朋友看？我們提供了生產級的公網隧道整合腳本 **`run_public.bat`**。
+
+當您執行此腳本時，系統將全自動進行以下高階部署動作：
+1. **依賴安全檢測**：自動為您安裝根目錄與後端所需的全部相依套件。
+2. **自動檢查並建置前端**：若尚未建置，將自動透過 Vite 將前端程式碼打包成生產環境靜態檔案（`frontend/dist`）。
+3. **啟動整合式單埠代理伺服器**：使用 Express 運行 `server.js`，將前端靜態資源與後端 API 代理整合在同一個 `3000` 埠中，解決跨域與路由問題。
+4. **建立安全的 HTTPS 公網隧道**：透過 `localtunnel` 自動映射本機的 `3000` 埠。
+5. **在控制台中繪製二維條碼 (QR Code)**：命令列會即時列出您的專屬公網網址，並繪製成一個 QR Code。
+6. **手機即掃即用**：您只需拿起手機，用相機掃描控制台中的 QR Code，便能立刻開啟您的個人記帳 App，隨手記帳！
+
+---
+
+## 🗄️ 資料庫架構與安全校驗
+
+本系統的分散式 SQLite 架構，為您的財務隱私提供了最高等級的本地硬體防護：
+
+*   **`backend/users.db`（全域帳戶庫）**：
+    僅包含一個 `users` 資料表，用以安全儲存每位使用者的帳號名稱與雜湊加密後的密碼（`password`）。
+*   **`backend/{username}.db`（專屬財務庫）**：
+    當有新使用者註冊或登入時，系統會自動在後端為其動態建立專屬的 SQLite 資料庫（例如 `gerry.db`）。該資料庫包含 `transactions` 資料表，用於存放所有交易、日期、金額、分類與備註。每個人的資料完全獨立在各自的 SQLite 單一檔案中。您隨時可以將 `{username}.db` 搬移或外置備份，安全性極高。
+*   **強力 API 安全校驗**：
+    後端在讀取特定的資料庫時，會先從請求標頭中提取 `X-Username`，並透過嚴格的 `isalnum()` 校驗。如果使用者帳號包含任何非法字元，系統將直接攔截並拋出 HTTP 400 錯誤。這能百分之百防範惡意路徑遍歷（Path Traversal）或 SQL 注入攻擊，保障您的本機作業系統安全。
+
+---
+
+## 💡 貼心實用小技巧
+
+*   **智慧公式計算機**：在「金額」欄位，您不用心算。直接輸入例如 `120*3`、`50+20-10`，點擊儲存時系統會自動求值。這在多筆消費合併記錄時特別好用！
+*   **行動端防誤觸長按刪除**：為了防止在小螢幕手機上不小心戳到刪除按鈕，行動版介面特別設計了「長按垃圾桶圖示」的機制，長按約一秒才會彈出確認視窗，保護您的數據安全。
+*   **100% 本地運作**：即便本機電腦沒有網路連線，系統依然能完美在本機啟動並提供完整的財務記帳與分析功能。
+
+---
+
+## 📄 開源授權
+
+本專案採用 MIT 授權條款。詳見 `LICENSE` 檔案。
 
 ---
 
