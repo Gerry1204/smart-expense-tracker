@@ -230,20 +230,38 @@ export default function App() {
   const weeklyData = useMemo(() => {
     const data: Record<string, { date: string; amount: number }> = {};
     
-    // Initialize dates in range to avoid gaps
-    const dates = [];
     const currDate = new Date(startDate);
     const lastDate = new Date(endDate);
-    while (currDate <= lastDate) {
-        dates.push(currDate.toISOString().split('T')[0]);
-        currDate.setDate(currDate.getDate() + 1);
+    const diffDays = Math.ceil((lastDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Aggregate to prevent chart lag on large date ranges
+    const isMonthly = diffDays > 90;
+    const isYearly = diffDays > 365 * 3;
+    
+    const getKey = (dateStr: string) => {
+        if (isYearly) return dateStr.substring(0, 4);
+        if (isMonthly) return dateStr.substring(0, 7);
+        return dateStr;
+    };
+
+    // Initialize dates in range to avoid gaps
+    const tempDate = new Date(startDate);
+    while (tempDate <= lastDate) {
+        const key = getKey(tempDate.toISOString().split('T')[0]);
+        if (!data[key]) data[key] = { date: key, amount: 0 };
+        
+        if (isYearly) tempDate.setFullYear(tempDate.getFullYear() + 1);
+        else if (isMonthly) tempDate.setMonth(tempDate.getMonth() + 1);
+        else tempDate.setDate(tempDate.getDate() + 1);
     }
-    dates.forEach(d => { data[d] = { date: d, amount: 0 }; });
 
     filteredTransactions.forEach(t => {
        if (t.type === 'expense' && (trendCategory === 'All' || t.category === trendCategory)) {
-           if (data[t.date]) {
-               data[t.date].amount += t.amount;
+           const key = getKey(t.date);
+           if (data[key]) {
+               data[key].amount += t.amount;
+           } else {
+               data[key] = { date: key, amount: t.amount };
            }
        }
     });
@@ -302,6 +320,9 @@ export default function App() {
         setAmountInput('');
         setNote('');
         if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(`Failed to save transaction: ${errData?.detail || res.statusText || res.status}`);
       }
     } catch (err) {
       console.error("Error adding transaction", err);

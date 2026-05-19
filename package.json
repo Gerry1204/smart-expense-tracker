@@ -1,0 +1,14 @@
+{
+  "name": "smart-expense-tracker-server",
+  "version": "1.0.0",
+  "description": "Production server for Smart Expense Tracker",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "http-proxy-middleware": "^3.0.0"
+  }
+}
