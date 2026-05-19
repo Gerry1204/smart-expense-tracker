@@ -1,7 +1,7 @@
 {
   "name": "smart-expense-tracker-server",
   "version": "1.0.0",
-  "description": "Production server for Smart Expense Tracker",
+  "description": "流金 (Flowing Gold) 智慧記帳分析系統的生產環境整合伺服器",
   "main": "server.js",
   "type": "module",
   "scripts": {

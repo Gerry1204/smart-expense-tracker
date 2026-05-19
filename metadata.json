@@ -1,5 +1,5 @@
 {
-  "name": "Smart Expense Tracker",
-  "description": "A local-first, privacy-focused expense tracker with a mobile-first PWA design and powerful desktop analysis tools.",
+  "name": "Flowing Gold 流金",
+  "description": "一款隱私優先、美觀現代的個人智慧記帳與財務分析系統。採用 React 前端與 FastAPI 後端，具備多使用者安全隔離的 SQLite 私有儲存架構與極致的行動端響應式記帳體驗。",
   "requestFramePermissions": []
 }
