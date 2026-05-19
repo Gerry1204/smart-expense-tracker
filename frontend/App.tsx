@@ -7,7 +7,8 @@ import {
   Plus, Trash2, ArrowUpCircle, ArrowDownCircle, 
   LayoutDashboard, List, Wallet, Calculator,
   ChevronLeft, ChevronRight, Moon, Sun, Download, Calendar, X,
-  TrendingUp, Activity, Tag, Globe, User, CheckCircle2, AlertCircle
+  TrendingUp, Activity, Tag, Globe, User, CheckCircle2, AlertCircle,
+  Mail, Lock
 } from 'lucide-react';
 import { Transaction, TransactionCreate, TransactionType, DashboardStats, YearlyStats } from './types';
 import { TRANSLATIONS, Language } from './translations';
@@ -1291,7 +1292,7 @@ export default function App() {
       {/* Auth Modal (Login/Register) */}
       {showAuthModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-100 dark:border-slate-700">
             <div className="relative p-8">
               <button 
                 onClick={() => {
@@ -1304,14 +1305,25 @@ export default function App() {
                 <X size={24} />
               </button>
               
-              <div className="mb-8 text-center">
-                <div className="inline-flex p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400 mb-4">
-                  <Wallet size={32} />
+              <div className="mb-8 text-center relative">
+                {/* Glowing ambient blob in the background */}
+                <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full blur-2xl opacity-20 dark:opacity-30 pointer-events-none transition-all duration-300 ${
+                  isForgotMode ? 'bg-indigo-500' : (isRegistering ? 'bg-rose-500' : 'bg-blue-500')
+                }`} />
+
+                <div className={`relative inline-flex p-4 rounded-3xl text-white mb-4 shadow-lg transition-all duration-300 hover:scale-110 ${
+                  isForgotMode 
+                  ? 'bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-indigo-200 dark:shadow-none' 
+                  : (isRegistering 
+                     ? 'bg-gradient-to-tr from-rose-500 to-pink-600 shadow-rose-200 dark:shadow-none' 
+                     : 'bg-gradient-to-tr from-blue-500 to-indigo-600 shadow-blue-200 dark:shadow-none')
+                }`}>
+                  <Wallet size={36} className="animate-wiggle" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
                   {isForgotMode ? t('forgotPassword') : (isRegistering ? t('register') : t('login'))}
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">
+                <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
                   {isForgotMode ? 'Retrieve your password via email' : (isRegistering ? 'Create your personal account' : 'Welcome back to Flowing Gold')}
                 </p>
               </div>
@@ -1319,34 +1331,44 @@ export default function App() {
               {isForgotMode ? (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                       {t('username')}
                     </label>
-                    <input 
-                      type="text"
-                      required
-                      value={authUsername}
-                      onChange={(e) => setAuthUsername(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      placeholder="Enter username"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <User size={18} />
+                      </span>
+                      <input 
+                        type="text"
+                        required
+                        value={authUsername}
+                        onChange={(e) => setAuthUsername(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                        placeholder="Enter username"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                       {t('email')}
                     </label>
-                    <input 
-                      type="email"
-                      required
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      placeholder="Enter your registered email"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Mail size={18} />
+                      </span>
+                      <input 
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                        placeholder="Enter your registered email"
+                      />
+                    </div>
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full py-3.5 text-lg font-bold shadow-lg mt-4 bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none text-white animate-pulse"
+                    className="w-full py-3.5 text-lg font-bold shadow-lg mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-200/50 dark:shadow-none border-none"
                   >
                     {t('sendTempPassword')}
                   </Button>
@@ -1355,7 +1377,7 @@ export default function App() {
                     <button 
                       type="button"
                       onClick={() => setIsForgotMode(false)}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                      className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
                     >
                       {t('backToLogin')}
                     </button>
@@ -1363,36 +1385,51 @@ export default function App() {
                 </form>
               ) : (
                 <form onSubmit={handleAuth} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
-                      {t('username')}
-                    </label>
-                    <input 
-                      type="text"
-                      required
-                      value={authUsername}
-                      onChange={(e) => setAuthUsername(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      placeholder="Enter username"
-                    />
-                  </div>
+                  {/* Email Field - Render first only if registering */}
                   {isRegistering && (
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                      <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                         {t('email')}
                       </label>
-                      <input 
-                        type="email"
-                        required
-                        value={authEmail}
-                        onChange={(e) => setAuthEmail(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                        placeholder="Enter email address"
-                      />
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                          <Mail size={18} />
+                        </span>
+                        <input 
+                          type="email"
+                          required
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                          placeholder="Enter email address"
+                        />
+                      </div>
                     </div>
                   )}
+
+                  {/* Username Field */}
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1 flex justify-between">
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
+                      {t('username')}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <User size={18} />
+                      </span>
+                      <input 
+                        type="text"
+                        required
+                        value={authUsername}
+                        onChange={(e) => setAuthUsername(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                        placeholder="Enter username"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password Field */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1 flex justify-between">
                       <span>{t('password')}</span>
                       {!isRegistering && (
                         <button 
@@ -1401,27 +1438,33 @@ export default function App() {
                             setIsForgotMode(true);
                             setAuthEmail('');
                           }}
-                          className="text-blue-600 hover:text-blue-700 text-xs font-semibold hover:underline"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-semibold hover:underline"
                         >
                           {t('forgotPassword')}
                         </button>
                       )}
                     </label>
-                    <input 
-                      type="password"
-                      required
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                      placeholder="••••••••"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <Lock size={18} />
+                      </span>
+                      <input 
+                        type="password"
+                        required
+                        value={authPassword}
+                        onChange={(e) => setAuthPassword(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                        placeholder="••••••••"
+                      />
+                    </div>
                   </div>
+
                   <Button 
                     type="submit" 
-                    className={`w-full py-3.5 text-lg font-bold shadow-lg mt-4 transition-all ${
+                    className={`w-full py-3.5 text-lg font-bold shadow-lg mt-6 transition-all border-none ${
                       isRegistering 
-                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 dark:shadow-none text-white' 
-                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none'
+                      ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white shadow-rose-200/50 dark:shadow-none' 
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-200/50 dark:shadow-none'
                     }`}
                   >
                     {isRegistering ? t('register') : t('login')}
@@ -1442,7 +1485,7 @@ export default function App() {
                   <span className="text-gray-500 dark:text-gray-400">
                     {isRegistering ? t('switchLoginPrefix') : t('switchRegisterPrefix')}
                   </span>
-                  <span className={`${isRegistering ? 'text-blue-600 hover:text-blue-700' : 'text-rose-600 hover:text-rose-700'} hover:underline ml-1`}>
+                  <span className={`${isRegistering ? 'text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300' : 'text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300'} hover:underline ml-1 font-bold`}>
                     {isRegistering ? t('switchLoginAction') : t('switchRegisterAction')}
                   </span>
                 </button>
@@ -1465,61 +1508,77 @@ export default function App() {
                 <X size={24} />
               </button>
               
-              <div className="mb-8 text-center">
-                <div className="inline-flex p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400 mb-4">
-                  <User size={32} />
+              <div className="mb-8 text-center relative">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full blur-2xl opacity-20 dark:opacity-30 bg-blue-500 pointer-events-none" />
+                <div className="relative inline-flex p-4 bg-gradient-to-tr from-blue-500 to-indigo-600 shadow-lg shadow-blue-200 dark:shadow-none rounded-3xl text-white mb-4">
+                  <User size={36} />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
                   {t('changePassword')}
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">
+                <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">
                   Update your account password safely
                 </p>
               </div>
 
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                     {t('oldPassword')}
                   </label>
-                  <input 
-                    type="password"
-                    required
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="Enter current password"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password"
+                      required
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                      placeholder="Enter current password"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                     {t('newPassword')}
                   </label>
-                  <input 
-                    type="password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="Enter new password"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                      placeholder="Enter new password"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1 px-1">
                     {t('confirmNewPassword')}
                   </label>
-                  <input 
-                    type="password"
-                    required
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="Confirm new password"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                      <Lock size={18} />
+                    </span>
+                    <input 
+                      type="password"
+                      required
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 outline-none transition-all focus:border-transparent"
+                      placeholder="Confirm new password"
+                    />
+                  </div>
                 </div>
                 <Button 
                   type="submit" 
-                  className="w-full py-3.5 text-lg font-bold shadow-lg mt-4 bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none text-white animate-pulse"
+                  className="w-full py-3.5 text-lg font-bold shadow-lg mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-200/50 dark:shadow-none border-none animate-pulse"
                 >
                   {t('changePassword')}
                 </Button>
