@@ -3,8 +3,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from contextlib import contextmanager
 
-# 1. 設定基礎路徑
+# 1. 設定基礎路徑與資料庫目錄
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_DIR = os.environ.get("DB_DIR", BASE_DIR)
+
+# 確保資料庫資料夾存在
+if not os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR, exist_ok=True)
 
 # 2. 建立 ORM 基底
 Base = declarative_base()
@@ -16,7 +21,7 @@ _engine_cache = {}
 def get_db_url(username: str) -> str:
     """產生資料庫連線字串"""
     # 建議：可以在這裡加入對 username 的字元檢查，防止惡意路徑
-    return f"sqlite:///{os.path.join(BASE_DIR, f'{username}.db')}"
+    return f"sqlite:///{os.path.join(DB_DIR, f'{username}.db')}"
 
 def get_user_engine(username: str):
     """

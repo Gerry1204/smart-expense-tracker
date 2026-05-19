@@ -199,6 +199,28 @@ def get_yearly_stats(year: str, db: Session = Depends(get_db)):
         highest_category=highest_category
     )
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to Local Expense Tracker API"}
+# Serve static frontend files
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# frontend dist path is located at "../frontend/dist" relative to this backend/main.py file
+dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist")
+
+if os.path.exists(dist_path):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+    
+    # Catch-all route to serve index.html for React router / HTML pages
+    @app.get("/{catchall:path}")
+    def serve_frontend(catchall: str):
+        if catchall.startswith("assets/"):
+            raise HTTPException(status_code=404, detail="Asset not found")
+        # If it's a specific file in the dist folder (like favicon.ico, etc.)
+        file_path = os.path.join(dist_path, catchall)
+        if catchall and os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(dist_path, "index.html"))
+else:
+    @app.get("/")
+    def read_root():
+        return {"message": "Welcome to Local Expense Tracker API (Frontend not built)"}

@@ -1,0 +1,36 @@
+# ========================================================
+# Render Blueprint Specification (render.yaml)
+# ========================================================
+# This file allows you to deploy the entire Smart Expense Tracker 
+# directly on Render (https://render.com) from your Git repository.
+# ========================================================
+
+services:
+  - type: web
+    name: smart-expense-tracker
+    runtime: docker
+    plan: free # Use Render's completely free tier!
+    
+    # Expose the service publicly
+    envVars:
+      - key: PORT
+        value: 8000
+      
+      # ----------------------------------------------------
+      # Data Persistence (SQLite Storage Configuration)
+      # ----------------------------------------------------
+      # By default, SQLite files are created in the container's 
+      # temporary storage, which is reset on server sleep/restart.
+      #
+      # If you want to keep your data PERMANENTLY, you must:
+      # 1. Upgrade this service's Plan to 'starter' (or higher) to enable disks.
+      # 2. Uncomment the 'disk' block below.
+      # 3. Uncomment the 'DB_DIR' environment variable below.
+      # ----------------------------------------------------
+      # - key: DB_DIR
+      #   value: /data
+
+    # disk:
+    #   name: smart-expense-sqlite-db
+    #   mountPath: /data
+    #   sizeGB: 1
