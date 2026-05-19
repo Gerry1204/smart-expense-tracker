@@ -13,7 +13,17 @@ import database
 
 # Create tables in the global database (for users) explicitly on startup
 # We treats 'users' as the default/global db name
-database.get_user_engine("users")
+engine = database.get_user_engine("users")
+
+# Try to run ALTER TABLE to add the email column if it doesn't exist
+try:
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR"))
+        print("Successfully added email column to users table.")
+except Exception as e:
+    # If the column already exists, it will raise an error, which is safe to ignore
+    pass
 
 app = FastAPI()
 
@@ -51,6 +61,15 @@ class YearlyStats(BaseModel):
 class UserAuth(BaseModel):
     username: str
     password: str
+    email: Optional[str] = None
+
+class ForgotPasswordRequest(BaseModel):
+    username: str
+    email: str
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 # Dependency
 def get_db(x_username: Optional[str] = Header(None)):
@@ -90,12 +109,21 @@ def register(auth: UserAuth, db: Session = Depends(get_global_db)):
     if not auth.username.isalnum():
         raise HTTPException(status_code=400, detail="Username must contain only letters and numbers")
         
+    # Validate email
+    if not auth.email or "@" not in auth.email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+        
     # Check if user exists
     existing_user = db.query(models.User).filter(models.User.username == auth.username).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
+        
+    # Check if email exists
+    existing_email = db.query(models.User).filter(models.User.email == auth.email).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-    new_user = models.User(username=auth.username, password=auth.password)
+    new_user = models.User(username=auth.username, password=auth.password, email=auth.email)
     db.add(new_user)
     db.commit()
     
@@ -115,6 +143,78 @@ def login(auth: UserAuth, db: Session = Depends(get_global_db)):
     if not user or user.password != auth.password:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return {"username": user.username, "message": "Login successful"}
+
+import smtplib
+from email.mime.text import MIMEText
+import random
+import string
+
+def generate_temp_password(length=8):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for i in range(length))
+
+def send_temp_password_email(email_to: str, username: str, temp_password: str):
+    # Print clearly to console for local testing
+    print("\n" + "="*60)
+    print(f"  [EMAIL MOCK] Sending mail to: {email_to}")
+    print(f"  [EMAIL MOCK] Dear {username}, your temporary password is: {temp_password}")
+    print("="*60 + "\n")
+    
+    # Try sending via standard SMTP
+    SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USER = os.environ.get("SMTP_USER", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    
+    if not SMTP_USER or not SMTP_PASSWORD:
+        return False
+        
+    msg = MIMEText(f"Dear {username},\n\nYour temporary password for Flowing Gold is: {temp_password}\n\nPlease log in and change your password immediately.\n\nBest regards,\nFlowing Gold Team")
+    msg['Subject'] = 'Flowing Gold - Temporary Password'
+    msg['From'] = SMTP_USER
+    msg['To'] = email_to
+    
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASSWORD)
+        server.sendmail(SMTP_USER, [email_to], msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"[SMTP ERROR] Failed to send email via SMTP: {e}")
+        return False
+
+@app.post("/forgot-password")
+def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_global_db)):
+    user = db.query(models.User).filter(models.User.username == req.username).first()
+    if not user or user.email != req.email:
+        raise HTTPException(status_code=400, detail="Username and email do not match our records")
+        
+    temp_pwd = generate_temp_password()
+    user.password = temp_pwd
+    db.commit()
+    
+    sent_successfully = send_temp_password_email(req.email, req.username, temp_pwd)
+    
+    return {
+        "success": True, 
+        "message": "Temporary password sent to your email" if sent_successfully else "Temporary password generated (printed in server logs for local testing)"
+    }
+
+@app.post("/change-password")
+def change_password(req: ChangePasswordRequest, x_username: Optional[str] = Header(None), db: Session = Depends(get_global_db)):
+    if not x_username:
+        raise HTTPException(status_code=401, detail="Authentication required")
+        
+    user = db.query(models.User).filter(models.User.username == x_username).first()
+    if not user or user.password != req.old_password:
+        raise HTTPException(status_code=400, detail="Incorrect old password")
+        
+    user.password = req.new_password
+    db.commit()
+    
+    return {"success": True, "message": "Password changed successfully"}
 
 @app.get("/transactions/", response_model=List[Transaction])
 def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

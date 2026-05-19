@@ -120,8 +120,16 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(localStorage.getItem('currentUser'));
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotMode, setIsForgotMode] = useState(false);
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+
+  // Change Password State
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const authHeaders = useMemo(() => {
     return currentUser ? { 'X-Username': currentUser } : {};
@@ -390,23 +398,38 @@ export default function App() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     const endpoint = isRegistering ? '/register' : '/login';
+    
+    // Validations
+    if (isRegistering && (!authEmail || !authEmail.includes('@'))) {
+      showToast(t('invalidEmail'), 'error');
+      return;
+    }
+
     try {
+      const payload: any = { username: authUsername, password: authPassword };
+      if (isRegistering) {
+        payload.email = authEmail;
+      }
+      
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: authUsername, password: authPassword })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
         if (isRegistering) {
             showToast(t('registerSuccess'), 'success');
             setIsRegistering(false);
+            setAuthEmail('');
+            setAuthPassword('');
         } else {
             setCurrentUser(data.username);
             localStorage.setItem('currentUser', data.username);
             setShowAuthModal(false);
             setAuthUsername('');
             setAuthPassword('');
+            setAuthEmail('');
             showToast(t('loginSuccess'), 'success');
         }
       } else {
@@ -414,12 +437,71 @@ export default function App() {
         let errorKey: any = 'authFailed';
         if (data.detail === 'Username already exists') errorKey = 'usernameExists';
         if (data.detail === 'Invalid username or password') errorKey = 'authFailed';
+        if (data.detail === 'Email already registered') {
+            showToast(language === 'zh' ? '此電子郵件已被註冊' : (language === 'ja' ? 'このメールアドレスは既に登録されています' : 'Email already registered'), 'error');
+            return;
+        }
         if (data.detail === 'Username must contain only letters and numbers' || 
             data.detail === 'Invalid username header format') {
             errorKey = 'usernameInvalid';
         }
         
         showToast(t(errorKey), 'error');
+      }
+    } catch (err) {
+      showToast(t('connectError'), 'error');
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail || !authEmail.includes('@')) {
+      showToast(t('invalidEmail'), 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: authUsername, email: authEmail })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('forgotPasswordSuccess'), 'success');
+        setIsForgotMode(false);
+        setAuthPassword('');
+      } else {
+        showToast(data.detail || t('authFailed'), 'error');
+      }
+    } catch (err) {
+      showToast(t('connectError'), 'error');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      showToast(t('passwordsDoNotMatch'), 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/change-password`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authHeaders
+        },
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('changePasswordSuccess'), 'success');
+        setShowChangePasswordModal(false);
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      } else {
+        showToast(data.detail || t('authFailed'), 'error');
       }
     } catch (err) {
       showToast(t('connectError'), 'error');
@@ -971,7 +1053,19 @@ export default function App() {
                     {currentUser}
                   </span>
                 </div>
-                <Button variant="ghost" className="px-3 !text-rose-600 hover:!text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 !dark:text-rose-400" onClick={handleLogout}>
+                <Button 
+                  variant="secondary" 
+                  className="px-2 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold !text-blue-600 dark:!text-blue-400" 
+                  onClick={() => {
+                    setOldPassword('');
+                    setNewPassword('');
+                    setConfirmNewPassword('');
+                    setShowChangePasswordModal(true);
+                  }}
+                >
+                   {t('changePassword')}
+                </Button>
+                <Button variant="ghost" className="px-2 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold !text-rose-600 hover:!text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20 !dark:text-rose-400" onClick={handleLogout}>
                    {t('logout')}
                 </Button>
               </div>
@@ -1200,7 +1294,10 @@ export default function App() {
           <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="relative p-8">
               <button 
-                onClick={() => setShowAuthModal(false)}
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setIsForgotMode(false);
+                }}
                 className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 title={t('close')}
               >
@@ -1212,55 +1309,134 @@ export default function App() {
                   <Wallet size={32} />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {isRegistering ? t('register') : t('login')}
+                  {isForgotMode ? t('forgotPassword') : (isRegistering ? t('register') : t('login'))}
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 mt-2">
-                  {isRegistering ? 'Create your personal account' : 'Welcome back to Flowing Gold'}
+                  {isForgotMode ? 'Retrieve your password via email' : (isRegistering ? 'Create your personal account' : 'Welcome back to Flowing Gold')}
                 </p>
               </div>
 
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
-                    {t('username')}
-                  </label>
-                  <input 
-                    type="text"
-                    required
-                    value={authUsername}
-                    onChange={(e) => setAuthUsername(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="Enter username"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
-                    {t('password')}
-                  </label>
-                  <input 
-                    type="password"
-                    required
-                    value={authPassword}
-                    onChange={(e) => setAuthPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                    placeholder="••••••••"
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className={`w-full py-3.5 text-lg font-bold shadow-lg mt-4 transition-all ${
-                    isRegistering 
-                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 dark:shadow-none text-white' 
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none'
-                  }`}
-                >
-                  {isRegistering ? t('register') : t('login')}
-                </Button>
-              </form>
+              {isForgotMode ? (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                      {t('username')}
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={authUsername}
+                      onChange={(e) => setAuthUsername(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="Enter username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                      {t('email')}
+                    </label>
+                    <input 
+                      type="email"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="Enter your registered email"
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full py-3.5 text-lg font-bold shadow-lg mt-4 bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none text-white animate-pulse"
+                  >
+                    {t('sendTempPassword')}
+                  </Button>
+                  
+                  <div className="mt-4 text-center">
+                    <button 
+                      type="button"
+                      onClick={() => setIsForgotMode(false)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      {t('backToLogin')}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleAuth} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                      {t('username')}
+                    </label>
+                    <input 
+                      type="text"
+                      required
+                      value={authUsername}
+                      onChange={(e) => setAuthUsername(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="Enter username"
+                    />
+                  </div>
+                  {isRegistering && (
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                        {t('email')}
+                      </label>
+                      <input 
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        placeholder="Enter email address"
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1 flex justify-between">
+                      <span>{t('password')}</span>
+                      {!isRegistering && (
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setIsForgotMode(true);
+                            setAuthEmail('');
+                          }}
+                          className="text-blue-600 hover:text-blue-700 text-xs font-semibold hover:underline"
+                        >
+                          {t('forgotPassword')}
+                        </button>
+                      )}
+                    </label>
+                    <input 
+                      type="password"
+                      required
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className={`w-full py-3.5 text-lg font-bold shadow-lg mt-4 transition-all ${
+                      isRegistering 
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 dark:shadow-none text-white' 
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none'
+                    }`}
+                  >
+                    {isRegistering ? t('register') : t('login')}
+                  </Button>
+                </form>
+              )}
 
               <div className="mt-8 text-center">
                 <button 
-                  onClick={() => setIsRegistering(!isRegistering)}
+                  onClick={() => {
+                    setIsRegistering(!isRegistering);
+                    setIsForgotMode(false);
+                    setAuthEmail('');
+                    setAuthPassword('');
+                  }}
                   className="text-sm font-medium transition-all"
                 >
                   <span className="text-gray-500 dark:text-gray-400">
@@ -1271,6 +1447,83 @@ export default function App() {
                   </span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 border border-gray-200 dark:border-slate-700">
+            <div className="relative p-8">
+              <button 
+                onClick={() => setShowChangePasswordModal(false)}
+                className="absolute right-6 top-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                title={t('close')}
+              >
+                <X size={24} />
+              </button>
+              
+              <div className="mb-8 text-center">
+                <div className="inline-flex p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl text-blue-600 dark:text-blue-400 mb-4">
+                  <User size={32} />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {t('changePassword')}
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mt-2">
+                  Update your account password safely
+                </p>
+              </div>
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                    {t('oldPassword')}
+                  </label>
+                  <input 
+                    type="password"
+                    required
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                    {t('newPassword')}
+                  </label>
+                  <input 
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 px-1">
+                    {t('confirmNewPassword')}
+                  </label>
+                  <input 
+                    type="password"
+                    required
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full py-3.5 text-lg font-bold shadow-lg mt-4 bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none text-white animate-pulse"
+                >
+                  {t('changePassword')}
+                </Button>
+              </form>
             </div>
           </div>
         </div>
