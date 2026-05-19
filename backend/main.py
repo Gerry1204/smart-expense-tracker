@@ -6,9 +6,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from fastapi import Header
 import os
-from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 import models
 import database
@@ -97,8 +95,7 @@ def register(auth: UserAuth, db: Session = Depends(get_global_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
     
-    hashed_password = pwd_context.hash(auth.password)
-    new_user = models.User(username=auth.username, password=hashed_password)
+    new_user = models.User(username=auth.username, password=auth.password)
     db.add(new_user)
     db.commit()
     
@@ -115,7 +112,7 @@ def login(auth: UserAuth, db: Session = Depends(get_global_db)):
          raise HTTPException(status_code=400, detail="Username must contain only letters and numbers")
 
     user = db.query(models.User).filter(models.User.username == auth.username).first()
-    if not user or not pwd_context.verify(auth.password, user.password):
+    if not user or user.password != auth.password:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     return {"username": user.username, "message": "Login successful"}
 
