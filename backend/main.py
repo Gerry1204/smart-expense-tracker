@@ -1,31 +1,22 @@
-from fastapi import FastAPI, Depends, HTTPException
+import time
+from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from google.cloud import firestore
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from fastapi import Header
 import os
-
-
-import models
 import database
 
-# Create tables in the global database (for users) explicitly on startup
-# We treats 'users' as the default/global db name
-engine = database.get_user_engine("users")
-
-# Try to run ALTER TABLE to add the email column if it doesn't exist
-try:
-    from sqlalchemy import text
-    with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR"))
-        print("Successfully added email column to users table.")
-except Exception as e:
-    # If the column already exists, it will raise an error, which is safe to ignore
-    pass
-
+# Initialize FastAPI App
 app = FastAPI()
+
+# Pre-initialize Firebase during server startup
+try:
+    database.init_firebase()
+except Exception as e:
+    print(f"Warning: Firebase could not be initialized on startup: {e}")
 
 # CORS configuration
 app.add_middleware(
@@ -71,40 +62,27 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
-# Dependency
-def get_db(x_username: Optional[str] = Header(None)):
-    # Security check: Validate username format to prevent path traversal or injection
-    if x_username and not x_username.isalnum():
-        raise HTTPException(status_code=400, detail="Invalid username header format")
 
-    # Determine which database to use
-    # If no header, fallback to 'users' (public/default)
-    current_db_name = x_username if x_username else "users"
-    
-    # Get engine (this also ensures tables exist)
-    engine = database.get_user_engine(current_db_name)
-    
-    # Create session
-    SessionLocal = database.sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+# Dependency to get Firestore client
+def get_firestore_db():
     try:
-        yield db
-    finally:
-        db.close()
+        return database.get_db()
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
-# Dependency for global DB (users)
-def get_global_db():
-    # Always use 'users' db for user auth stuff
-    engine = database.get_user_engine("users")
-    SessionLocal = database.sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Dependency to get current username from header
+def get_current_username(x_username: Optional[str] = Header(None)):
+    if x_username:
+        # Security check: Validate username format to prevent injection
+        if not x_username.isalnum():
+            raise HTTPException(status_code=400, detail="Invalid username header format")
+        return x_username
+    # Fallback to 'users' to maintain backward compatibility
+    return "users"
+
 
 @app.post("/register")
-def register(auth: UserAuth, db: Session = Depends(get_global_db)):
+def register(auth: UserAuth, db = Depends(get_firestore_db)):
     # Validate username
     if not auth.username.isalnum():
         raise HTTPException(status_code=400, detail="Username must contain only letters and numbers")
@@ -114,35 +92,43 @@ def register(auth: UserAuth, db: Session = Depends(get_global_db)):
         raise HTTPException(status_code=400, detail="Invalid email address")
         
     # Check if user exists
-    existing_user = db.query(models.User).filter(models.User.username == auth.username).first()
-    if existing_user:
+    user_ref = db.collection("users").document(auth.username)
+    if user_ref.get().exists:
         raise HTTPException(status_code=400, detail="Username already exists")
         
     # Check if email exists
-    existing_email = db.query(models.User).filter(models.User.email == auth.email).first()
-    if existing_email:
+    email_query = db.collection("users").where("email", "==", auth.email).limit(1).get()
+    if len(email_query) > 0:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    new_user = models.User(username=auth.username, password=auth.password, email=auth.email)
-    db.add(new_user)
-    db.commit()
-    
-    # Initialize the user's specific database
-    # get_user_engine automatically runs create_all, so just calling it is enough
-    database.get_user_engine(auth.username)
+    # Save new user in Firestore
+    user_ref.set({
+        "username": auth.username,
+        "password": auth.password,
+        "email": auth.email
+    })
     
     return {"message": "User registered successfully"}
 
+
 @app.post("/login")
-def login(auth: UserAuth, db: Session = Depends(get_global_db)):
+def login(auth: UserAuth, db = Depends(get_firestore_db)):
     # Validate username format
     if not auth.username.isalnum():
          raise HTTPException(status_code=400, detail="Username must contain only letters and numbers")
 
-    user = db.query(models.User).filter(models.User.username == auth.username).first()
-    if not user or user.password != auth.password:
+    user_ref = db.collection("users").document(auth.username)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    return {"username": user.username, "message": "Login successful"}
+        
+    user_data = user_doc.to_dict()
+    if user_data.get("password") != auth.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+        
+    return {"username": auth.username, "message": "Login successful"}
+
 
 import smtplib
 from email.mime.text import MIMEText
@@ -185,15 +171,21 @@ def send_temp_password_email(email_to: str, username: str, temp_password: str):
         print(f"[SMTP ERROR] Failed to send email via SMTP: {e}")
         return False
 
+
 @app.post("/forgot-password")
-def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_global_db)):
-    user = db.query(models.User).filter(models.User.username == req.username).first()
-    if not user or user.email != req.email:
+def forgot_password(req: ForgotPasswordRequest, db = Depends(get_firestore_db)):
+    user_ref = db.collection("users").document(req.username)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        raise HTTPException(status_code=400, detail="Username and email do not match our records")
+        
+    user_data = user_doc.to_dict()
+    if user_data.get("email") != req.email:
         raise HTTPException(status_code=400, detail="Username and email do not match our records")
         
     temp_pwd = generate_temp_password()
-    user.password = temp_pwd
-    db.commit()
+    user_ref.update({"password": temp_pwd})
     
     sent_successfully = send_temp_password_email(req.email, req.username, temp_pwd)
     
@@ -202,106 +194,116 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_global
         "message": "Temporary password sent to your email" if sent_successfully else "Temporary password generated (printed in server logs for local testing)"
     }
 
+
 @app.post("/change-password")
-def change_password(req: ChangePasswordRequest, x_username: Optional[str] = Header(None), db: Session = Depends(get_global_db)):
-    if not x_username:
+def change_password(req: ChangePasswordRequest, x_username: str = Depends(get_current_username), db = Depends(get_firestore_db)):
+    if x_username == "users":
         raise HTTPException(status_code=401, detail="Authentication required")
         
-    user = db.query(models.User).filter(models.User.username == x_username).first()
-    if not user or user.password != req.old_password:
+    user_ref = db.collection("users").document(x_username)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        raise HTTPException(status_code=400, detail="User not found")
+        
+    user_data = user_doc.to_dict()
+    if user_data.get("password") != req.old_password:
         raise HTTPException(status_code=400, detail="Incorrect old password")
         
-    user.password = req.new_password
-    db.commit()
+    user_ref.update({"password": req.new_password})
     
     return {"success": True, "message": "Password changed successfully"}
 
+
 @app.get("/transactions/", response_model=List[Transaction])
-def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    transactions = db.query(models.Transaction).order_by(desc(models.Transaction.date), desc(models.Transaction.id)).offset(skip).limit(limit).all()
+def read_transactions(skip: int = 0, limit: int = 100, x_username: str = Depends(get_current_username), db = Depends(get_firestore_db)):
+    tx_ref = db.collection("users").document(x_username).collection("transactions")
+    
+    # Query from Firestore.
+    # To avoid needing composite index in Firestore for date + id sorting, 
+    # we fetch sorted by date DESC and then sort by id DESC in memory.
+    docs = tx_ref.order_by("date", direction=firestore.Query.DESCENDING).offset(skip).limit(limit).stream()
+    
+    transactions = []
+    for doc in docs:
+        transactions.append(doc.to_dict())
+        
+    # Consistent in-memory sorting: date descending, then id descending
+    transactions.sort(key=lambda x: (x.get("date", ""), x.get("id", 0)), reverse=True)
+    
     return transactions
 
+
 @app.post("/transactions/", response_model=Transaction)
-def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
-    db_transaction = models.Transaction(**transaction.model_dump())
-    db.add(db_transaction)
-    db.commit()
-    db.refresh(db_transaction)
-    return db_transaction
+def create_transaction(transaction: TransactionCreate, x_username: str = Depends(get_current_username), db = Depends(get_firestore_db)):
+    # Generate unique 64-bit style ID using millisecond timestamp
+    tx_id = int(time.time() * 1000)
+    
+    tx_data = transaction.model_dump()
+    tx_data["id"] = tx_id
+    
+    # Store document in sub-collection
+    db.collection("users").document(x_username).collection("transactions").document(str(tx_id)).set(tx_data)
+    
+    return tx_data
+
 
 @app.delete("/transactions/{transaction_id}")
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
-    db_transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
-    if db_transaction is None:
+def delete_transaction(transaction_id: int, x_username: str = Depends(get_current_username), db = Depends(get_firestore_db)):
+    tx_ref = db.collection("users").document(x_username).collection("transactions").document(str(transaction_id))
+    if not tx_ref.get().exists:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    db.delete(db_transaction)
-    db.commit()
+        
+    tx_ref.delete()
     return {"ok": True}
 
+
 @app.get("/stats/year/{year}", response_model=YearlyStats)
-def get_yearly_stats(year: str, db: Session = Depends(get_db)):
-    year_filter = models.Transaction.date.like(f"{year}-%")
-
-    # 1. Highest Spending Day
-    highest_day_query = (
-        db.query(
-            models.Transaction.date,
-            func.sum(models.Transaction.amount).label("total_amount")
-        )
-        .filter(year_filter, models.Transaction.type == "expense")
-        .group_by(models.Transaction.date)
-        .order_by(desc("total_amount"))
-        .first()
-    )
-
+def get_yearly_stats(year: str, x_username: str = Depends(get_current_username), db = Depends(get_firestore_db)):
+    # Fetch all transactions of the user for that specific year using date boundaries
+    tx_ref = db.collection("users").document(x_username).collection("transactions")
+    
+    # String date format prefix matching in Firestore
+    docs = tx_ref.where("date", ">=", f"{year}-01-01").where("date", "<=", f"{year}-12-31").stream()
+    
+    day_spending = {}  # { date: total_amount } for expenses
+    day_freq = {}      # { date: tx_count } for expenses
+    cat_spending = {}  # { category: total_amount } for expenses
+    
+    for doc in docs:
+        tx = doc.to_dict()
+        if tx.get("type") == "expense":
+            date = tx.get("date")
+            amount = tx.get("amount", 0.0)
+            category = tx.get("category")
+            
+            day_spending[date] = day_spending.get(date, 0.0) + amount
+            day_freq[date] = day_freq.get(date, 0) + 1
+            cat_spending[category] = cat_spending.get(category, 0.0) + amount
+            
     highest_spending_day = None
-    if highest_day_query:
-        highest_spending_day = {"date": highest_day_query.date, "amount": highest_day_query.total_amount}
-
-    # 2. Most Frequent Day (Most items purchased - expenses)
-    most_freq_query = (
-        db.query(
-            models.Transaction.date,
-            func.count(models.Transaction.id).label("tx_count")
-        )
-        .filter(year_filter, models.Transaction.type == "expense")
-        .group_by(models.Transaction.date)
-        .order_by(desc("tx_count"))
-        .first()
-    )
-
+    if day_spending:
+        highest_day = max(day_spending, key=day_spending.get)
+        highest_spending_day = {"date": highest_day, "amount": day_spending[highest_day]}
+        
     most_frequent_day = None
-    if most_freq_query:
-        most_frequent_day = {"date": most_freq_query.date, "count": most_freq_query.tx_count}
-
-    # 3. Highest Category
-    highest_cat_query = (
-        db.query(
-            models.Transaction.category,
-            func.sum(models.Transaction.amount).label("total_amount")
-        )
-        .filter(year_filter, models.Transaction.type == "expense")
-        .group_by(models.Transaction.category)
-        .order_by(desc("total_amount"))
-        .first()
-    )
-
+    if day_freq:
+        freq_day = max(day_freq, key=day_freq.get)
+        most_frequent_day = {"date": freq_day, "count": day_freq[freq_day]}
+        
     highest_category = None
-    if highest_cat_query:
-        highest_category = {"category": highest_cat_query.category, "amount": highest_cat_query.total_amount}
-
+    if cat_spending:
+        highest_cat = max(cat_spending, key=cat_spending.get)
+        highest_category = {"category": highest_cat, "amount": cat_spending[highest_cat]}
+        
     return YearlyStats(
         highest_spending_day=highest_spending_day,
         most_frequent_day=most_frequent_day,
         highest_category=highest_category
     )
 
-# Serve static frontend files
-import os
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
-# frontend dist path is located at "../frontend/dist" relative to this backend/main.py file
+# Serve static frontend files
 dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "dist")
 
 if os.path.exists(dist_path):

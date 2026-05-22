@@ -20,7 +20,9 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/transactions') || 
       req.path.startsWith('/stats') || 
       req.path === '/register' || 
-      req.path === '/login') {
+      req.path === '/login' ||
+      req.path === '/forgot-password' ||
+      req.path === '/change-password') {
     return apiProxy(req, res, next);
   }
   next();

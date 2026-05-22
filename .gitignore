@@ -37,3 +37,6 @@ env
 
 
 *.bat
+
+# Firebase
+backend/firebase-key.json
